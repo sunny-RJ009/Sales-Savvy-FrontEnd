@@ -10,20 +10,22 @@ const CustomModal = ({ modalType, onClose, onSubmit, response }) => {
     stock: "",
     categoryId: "",
     imageUrl: "",
+    month: "",
+    year: "",
+    date: "",
   });
 
-  const [inputValue, setInputValue] = useState(""); // Generalized input for all cases
+  const [inputValue, setInputValue] = useState(""); // For generalized input (ID fields)
 
+  // Input handlers
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
-
-  const handleGeneralInputChange = (e) => {
-    setInputValue(e.target.value);
-  };
+  const handleGeneralInputChange = (e) => setInputValue(e.target.value);
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
     switch (modalType) {
       case "addProduct": {
         const processedData = {
@@ -36,50 +38,35 @@ const CustomModal = ({ modalType, onClose, onSubmit, response }) => {
         break;
       }
       case "deleteProduct": {
-        const productId = parseInt(inputValue, 10);
-        onSubmit({ productId });
+        onSubmit({ productId: parseInt(inputValue, 10) });
         break;
       }
       case "viewUser": {
-        const userId = parseInt(inputValue, 10);
-        onSubmit({ userId });
+        onSubmit({ userId: parseInt(inputValue, 10) });
         break;
       }
       case "modifyUser": {
-        const formData = new FormData(e.target);
-        const username = formData.get("username");
-        const email = formData.get("email");
-        const role = formData.get("role");
-        const userId = parseInt(inputValue, 10);
-        const data = {
-          username,
-        };
-        onSubmit(userId);
-        break;
-      }
-      case "monthlyBusiness": {
-        const month = formData.month;
-        const year = formData.year;
-        onSubmit({ month, year });
-        break;
-      }
-      case "dailyBusiness": {
-        const date = formData.date;
-        onSubmit({ date });
-        break;
-      }
+        const formDataRaw = new FormData(e.target);
+        const username = formDataRaw.get("username");
+        const email = formDataRaw.get("email");
+        const role = formDataRaw.get("role");
+        const userId = parseInt(formDataRaw.get("userId"), 10);
 
-      case "yearlyBusiness": {
-        const year = formData.year;
-        onSubmit({ year });
+        onSubmit({ userId, username, email, role });
         break;
       }
-
-      case "overallBusiness": {
+      case "monthlyBusiness":
+        onSubmit({ month: formData.month, year: formData.year });
+        break;
+      case "dailyBusiness":
+        onSubmit({ date: formData.date });
+        break;
+      case "yearlyBusiness":
+        onSubmit({ year: formData.year });
+        break;
+      case "overallBusiness":
         onSubmit();
         break;
-      }
-
       default:
         break;
     }
@@ -88,71 +75,26 @@ const CustomModal = ({ modalType, onClose, onSubmit, response }) => {
   return (
     <div className="modal-overlay">
       <div className="modal-content">
-        {/* Add Product Form */}
+        {/* Add Product */}
         {modalType === "addProduct" &&
           (!response ? (
             <>
               <h2>Add Product</h2>
-              <form className="modal-form">
-                <div className="modal-form-item">
-                  <label htmlFor="name">Name:</label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    placeholder="Name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                  />
-                </div>
-
-                <div className="modal-form-item">
-                  <label htmlFor="price">Price:</label>
-                  <input
-                    type="number"
-                    id="price"
-                    name="price"
-                    placeholder="Price"
-                    value={formData.price}
-                    onChange={handleInputChange}
-                  />
-                </div>
-
-                <div className="modal-form-item">
-                  <label htmlFor="stock">Stock:</label>
-                  <input
-                    type="number"
-                    id="stock"
-                    name="stock"
-                    placeholder="Stock"
-                    value={formData.stock}
-                    onChange={handleInputChange}
-                  />
-                </div>
-
-                <div className="modal-form-item">
-                  <label htmlFor="categoryId">Category ID:</label>
-                  <input
-                    type="number"
-                    id="categoryId"
-                    name="categoryId"
-                    placeholder="Category ID"
-                    value={formData.categoryId}
-                    onChange={handleInputChange}
-                  />
-                </div>
-
-                <div className="modal-form-item">
-                  <label htmlFor="imageUrl">Image URL:</label>
-                  <input
-                    type="text"
-                    id="imageUrl"
-                    name="imageUrl"
-                    placeholder="Image URL"
-                    value={formData.imageUrl}
-                    onChange={handleInputChange}
-                  />
-                </div>
+              <form className="modal-form" onSubmit={handleSubmit}>
+                {["name", "price", "stock", "categoryId", "imageUrl"].map((field) => (
+                  <div className="modal-form-item" key={field}>
+                    <label htmlFor={field}>{field[0].toUpperCase() + field.slice(1)}:</label>
+                    <input
+                      type={field === "price" || field === "stock" || field === "categoryId" ? "number" : "text"}
+                      id={field}
+                      name={field}
+                      placeholder={field}
+                      value={formData[field]}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                ))}
                 <div className="modal-form-item">
                   <label htmlFor="description">Description:</label>
                   <textarea
@@ -163,328 +105,121 @@ const CustomModal = ({ modalType, onClose, onSubmit, response }) => {
                     onChange={handleInputChange}
                   ></textarea>
                 </div>
+                <button type="submit">Submit</button>
+                <button type="button" onClick={onClose}>Cancel</button>
               </form>
-
-              <button onClick={handleSubmit}>Submit</button>
-              <button onClick={onClose}>Cancel</button>
             </>
           ) : (
-            <>
+            <div className="product-details-preview">
               <h2>Product Details</h2>
-              <div className="full-products">
-                <div className="product-details img">
-                  <img src={response.product.imageUrl} />
-                </div>
-                <div className="product-details-info">
-                  <div className="product-details">
-                    <div className="">Name :</div>
-                    <div className="">{response?.product?.product?.name}</div>
+              {response.product ? (
+                <div className="full-products">
+                  <div className="product-details img">
+                    <img
+                      src={response.product.productImage?.imageUrl}
+                      alt={response.product.name || "Product Preview."}
+                    />
                   </div>
-                  <div className="product-details">
-                    <div className="">Description :</div>
-                    <div className="">
-                      {response?.product?.product?.description}
-                    </div>
-                  </div>
-                  <div className="product-details">
-                    <div className="">price :</div>
-                    <div className="">{response?.product?.product?.price}</div>
-                  </div>
-                  <div className="product-details">
-                    <div className="">Stock :</div>
-                    <div className="">{response?.product?.product?.stock}</div>
-                  </div>
-                  <div className="product-details">
-                    <div className="">Category :</div>
-                    <div className="">
-                      {response?.product?.product?.category.categoryName}
+                  <div className="product-details-info">
+                    {["name", "description", "price", "stock"].map((field) => (
+                      <div className="product-details" key={field}>
+                        <div>{field[0].toUpperCase() + field.slice(1)} :</div>
+                        <div>{response.product[field]}</div>
+                      </div>
+                    ))}
+                    <div className="product-details">
+                      <div>Category :</div>
+                      <div>{response.product.category?.categoryName}</div>
                     </div>
                   </div>
                 </div>
-              </div>
-              <div className="product-details">
-                <button onClick={onClose}>Close</button>
-              </div>
-            </>
-          ))}
-
-        {/* Delete Product Form */}
-        {modalType === "deleteProduct" &&
-          (!response ? (
-            <>
-              <h2>Delete Product</h2>
-              <form>
-                <input
-                  type="number"
-                  placeholder="Enter Product ID"
-                  value={inputValue}
-                  onChange={handleGeneralInputChange}
-                />
-              </form>
-              <button onClick={handleSubmit}>Delete</button>
-              <button onClick={onClose}>Cancel</button>
-            </>
-          ) : (
-            <div>
-              <h2>Product Deleted Successfully</h2>
+              ) : (
+                <p>No product details found.</p>
+              )}
               <button onClick={onClose}>Close</button>
             </div>
           ))}
 
-        {/* View User Details Form */}
+        {/* Delete Product */}
+        {modalType === "deleteProduct" && (
+          <>
+            {!response ? (
+              <form onSubmit={handleSubmit}>
+                <h2>Delete Product</h2>
+                <input
+                  type="number"
+                  placeholder="Enter Product ID"npm run dev
+                  value={inputValue}
+                  onChange={handleGeneralInputChange}
+                  required
+                />
+                <button type="submit">Delete</button>
+                <button type="button" onClick={onClose}>Cancel</button>
+              </form>
+            ) : (
+              <div>
+                <h2>{response.message}</h2>
+                <button onClick={onClose}>Close</button>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* View User */}
         {modalType === "viewUser" && (
           <>
-            <h2>View User Details</h2>
-            <form>
-              <input
-                type="number"
-                placeholder="Enter User ID"
-                value={inputValue}
-                onChange={handleGeneralInputChange}
-              />
-            </form>
-            <button onClick={handleSubmit}>Submit</button>
-            <button onClick={onClose}>Cancel</button>
-          </>
-        )}
-
-        {/* Response Display */}
-        {modalType === "response" && response && (
-          <>
-            {response.user ? (
-              <>
-                <h2>User Details</h2>
-                <div className="user-details">
-                  <p>
-                    <strong>User ID:</strong> {response.user.userId}
-                  </p>
-                  <p>
-                    <strong>Username:</strong> {response.user.username}
-                  </p>
-                  <p>
-                    <strong>Email:</strong> {response.user.email}
-                  </p>
-                  <p>
-                    <strong>Role:</strong> {response.user.role}
-                  </p>
-                  <p>
-                    <strong>Created At:</strong>{" "}
-                    {new Date(response.user.createdAt).toLocaleString()}
-                  </p>
-                  <p>
-                    <strong>Updated At:</strong>{" "}
-                    {new Date(response.user.updatedAt).toLocaleString()}
-                  </p>
-                </div>
-              </>
+            {!response ? (
+              <form onSubmit={handleSubmit}>
+                <h2>View User Details</h2>
+                <input
+                  type="number"
+                  placeholder="Enter User ID"
+                  value={inputValue}
+                  onChange={handleGeneralInputChange}
+                  required
+                />
+                <button type="submit">Submit</button>
+                <button type="button" onClick={onClose}>Cancel</button>
+              </form>
             ) : (
-              <>
-                <h2>Error 1</h2>
-                <p>Something went wrong.</p>
-              </>
+              <div>
+                {response.user ? (
+                  <div className="user-details">
+                    <h2>User Details</h2>
+                    {["userId", "username", "email", "role"].map((field) => (
+                      <p key={field}>
+                        <strong>{field[0].toUpperCase() + field.slice(1)}:</strong> {response.user[field]}
+                      </p>
+                    ))}
+                    <p>
+                      <strong>Created At:</strong> {new Date(response.user.createdAt).toLocaleString()}
+                    </p>
+                    <p>
+                      <strong>Updated At:</strong> {new Date(response.user.updatedAt).toLocaleString()}
+                    </p>
+                  </div>
+                ) : (
+                  <h2>User Not Found</h2>
+                )}
+                <button onClick={onClose}>Back to Dashboard</button>
+              </div>
             )}
-            <button onClick={onClose}>Back to Dashboard</button>
-          </>
-        )}
-        {modalType === "monthlyBusiness" && (
-          <>
-            <form className="modal-form">
-              {!response && (
-                <>
-                  <div className="modal-form-item">
-                    <label htmlFor="name">Month:</label>
-                    <input
-                      type="number"
-                      id="month"
-                      name="month"
-                      placeholder="10"
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div className="modal-form-item">
-                    <label htmlFor="name">Year:</label>
-                    <input
-                      type="number"
-                      id="year"
-                      name="year"
-                      placeholder="2025"
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <button onClick={handleSubmit}>Sumbit</button>
-                </>
-              )}
-              {response && (
-                <div>
-                  <div className="business-response-item">
-                    <div>Total Business: ₹ </div>
-                    <div>
-                      {response?.dailyBusiness?.totalBusiness?.toFixed(2)}
-                    </div>
-                  </div>
-                  <div className="business-response-item">
-                    <h5>Category Sales</h5>
-                  </div>
-                  {Object.keys(response?.monthlyBusiness?.categorySales)?.map(
-                    (key) => {
-                      return (
-                        <div key={key} className="business-response-item">
-                          <div>{key}</div>
-                          <div>
-                            {response?.monthlyBusiness?.categorySales[key]}
-                          </div>
-                        </div>
-                      );
-                    }
-                  )}
-                </div>
-              )}
-
-              <button onClick={onClose}>Cancel</button>
-            </form>
           </>
         )}
 
-        {modalType === "dailyBusiness" && (
-          <>
-            <form className="modal-form">
-              {!response && (
-                <>
-                  <div className="modal-form-item">
-                    <label htmlFor="date">Date:</label>
-                    <input
-                      type="text"
-                      id="date"
-                      name="date"
-                      placeholder="2025-12-31"
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <button onClick={handleSubmit}>Sumbit</button>
-                </>
-              )}
-              {response && (
-                <div>
-                  <div className="business-response-item">
-                    <div>Total Business: ₹ </div>
-                    <div>
-                      {response?.dailyBusiness?.totalBusiness?.toFixed(2)}
-                    </div>
-                  </div>
-                  <div className="business-response-item">
-                    <h5>Category Sales</h5>
-                  </div>
-                  {Object.keys(response?.dailyBusiness?.categorySales)?.map(
-                    (key) => {
-                      return (
-                        <div key={key} className="business-response-item">
-                          <div>{key}</div>
-                          <div>
-                            {response?.dailyBusiness?.categorySales[key]}
-                          </div>
-                        </div>
-                      );
-                    }
-                  )}
-                </div>
-              )}
+        {/* Modify User */}
+        {modalType === "modifyUser" && <ModifyUserFormComponent onClose={onClose} />}
 
-              <button onClick={onClose}>Cancel</button>
-            </form>
-          </>
-        )}
-
-        {modalType === "yearlyBusiness" && (
-          <>
-            <form className="modal-form">
-              {!response && (
-                <>
-                  <div className="modal-form-item">
-                    <label htmlFor="year">Year:</label>
-                    <input
-                      type="number"
-                      id="year"
-                      name="year"
-                      placeholder="2025"
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <button onClick={handleSubmit}>Sumbit</button>
-                </>
-              )}
-              {response && (
-                <div>
-                  <div className="business-response-item">
-                    <div>Total Business: ₹ </div>
-                    <div>
-                      {response?.yearlyBusiness?.totalBusiness?.toFixed(2)}
-                    </div>
-                  </div>
-                  <div className="business-response-item">
-                    <h5>Category Sales</h5>
-                  </div>
-                  {Object.keys(response?.yearlyBusiness?.categorySales)?.map(
-                    (key) => {
-                      return (
-                        <div key={key} className="business-response-item">
-                          <div>{key}</div>
-                          <div>
-                            {response?.yearlyBusiness?.categorySales[key]}
-                          </div>
-                        </div>
-                      );
-                    }
-                  )}
-                </div>
-              )}
-
-              <button onClick={onClose}>Cancel</button>
-            </form>
-          </>
-        )}
-
-        {modalType === "overallBusiness" && (
-          <>
-            <form className="modal-form">
-              {!response && (
-                <>
-                  <button onClick={handleSubmit}>Get Overall Business </button>
-                </>
-              )}
-              {response && (
-                <div>
-                  <div className="business-response-item">
-                    <div>Total Business: ₹ </div>
-                    <div>
-                      {response?.overallBusiness?.totalBusiness?.toFixed(2)}
-                    </div>
-                  </div>
-                  <div className="business-response-item">
-                    <h5>Category Sales</h5>
-                  </div>
-                  {Object.keys(response?.overallBusiness?.categorySales)?.map(
-                    (key) => {
-                      return (
-                        <div key={key} className="business-response-item">
-                          <div>{key}</div>
-                          <div>
-                            {response?.overallBusiness?.categorySales[key]}
-                          </div>
-                        </div>
-                      );
-                    }
-                  )}
-                </div>
-              )}
-
-              <button onClick={onClose}>Cancel</button>
-            </form>
-          </>
-        )}
-
-        {/* ModifyUser */}
-        {modalType === "modifyUser" && (
-          <ModifyUserFormComponent onClose={onClose} />
+        {/* Business Modals */}
+        {["monthlyBusiness", "dailyBusiness", "yearlyBusiness", "overallBusiness"].includes(modalType) && (
+          <BusinessModal
+            modalType={modalType}
+            formData={formData}
+            handleInputChange={handleInputChange}
+            handleSubmit={handleSubmit}
+            response={response}
+            onClose={onClose}
+          />
         )}
       </div>
     </div>
@@ -493,161 +228,172 @@ const CustomModal = ({ modalType, onClose, onSubmit, response }) => {
 
 export default CustomModal;
 
+// ModifyUserFormComponent
 const ModifyUserFormComponent = ({ onClose }) => {
-  const [userId, setUserId] = useState(null);
+  const [userId, setUserId] = useState("");
   const [userDetails, setUserDetails] = useState(null);
   const [updated, setUpdated] = useState(false);
 
-  const handleFetchUser = async (e) => {
+  const fetchUser = async (e) => {
     e.preventDefault();
+    if (!userId) return;
     try {
-      const formData = new FormData(e.target);
-      const userid = formData.get("user-id");
-
-      if (!userid) return;
-
       const response = await fetch("http://localhost:9090/admin/user/getbyid", {
         method: "POST",
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ userId: userid }), // Ensure userId is correctly passed
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: parseInt(userId, 10) }),
       });
-
       if (response.ok) {
-        const user = await response.json();
-        console.log("userDetails2==>", user);
-
-        setUserDetails(user);
-        setUserId(userid);
+        const data = await response.json();
+        setUserDetails(data);
+      } else {
+        setUserDetails(null);
       }
     } catch (error) {
-      console.log("Error fetching user details", error);
+      console.error("Error fetching user", error);
+      setUserDetails(null);
     }
   };
 
-  useEffect(() => {
-    console.log("userDetails==>", userDetails);
-  }, [userDetails]);
-
-  const handleUpdateUser = async (e) => {
+  const updateUser = async (e) => {
     e.preventDefault();
+    if (!userDetails) return;
     const formData = new FormData(e.target);
-
-    const username = formData.get("username");
-    const email = formData.get("email");
-    const role = formData.get("role");
-
-    const response = await fetch("http://localhost:9090/admin/user/modify", {
-      method: "PUT",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        userId: +userId,
-        username: username,
-        email: email,
-        role: role,
-      }),
-    });
-
-    if (response.ok) {
-      const user = await response.json();
-      console.log("userDetails2==>", user);
-
-      setUpdated(true);
-      setUserDetails(user);
+    const updatedUser = {
+      userId: parseInt(userId, 10),
+      username: formData.get("username"),
+      email: formData.get("email"),
+      role: formData.get("role"),
+    };
+    try {
+      const response = await fetch("http://localhost:9090/admin/user/modify", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedUser),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUserDetails(data);
+        setUpdated(true);
+      }
+    } catch (error) {
+      console.error("Error updating user", error);
     }
   };
 
   if (!userDetails) {
     return (
-      <form onSubmit={handleFetchUser}>
+      <form onSubmit={fetchUser}>
+        <h2>Modify User</h2>
         <div className="modal-form-item">
-          <label for="user-id">User ID:</label>
+          <label htmlFor="user-id">User ID:</label>
           <input
-            type="text"
+            type="number"
             id="user-id"
-            name="user-id"
             value={userId}
-            onChange={(e) => userId(e.target.value)}
+            onChange={(e) => setUserId(e.target.value)}
+            required
           />
         </div>
         <button type="submit">Get User</button>
+        <button type="button" onClick={onClose}>Cancel</button>
       </form>
     );
   }
 
   if (userDetails && !updated) {
     return (
-      <div>
-        <form onSubmit={handleUpdateUser} className="modal-form">
-          <div className="modal-form-item">
-            <label for="user-id">User ID:</label>
-            <input
-              type="text"
-              id="user-id"
-              name="user-id"
-              value="17"
-              readonly
-            />
-          </div>
-          <div className="modal-form-item">
-            <label for="username">Username:</label>
-            <input
-              type="text"
-              id="username"
-              name="username"
-              defaultValue={userDetails?.username}
-            />
-          </div>
-
-          <div className="modal-form-item">
-            <label for="email">Email:</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              defaultValue={userDetails?.email}
-            />
-          </div>
-          <div className="modal-form-item">
-            <label for="role">Role:</label>
-            <input
-              type="text"
-              id="role"
-              name="role"
-              defaultValue={userDetails.role}
-            />
-          </div>
-          <button type="submit">Submit</button>
-        </form>
-      </div>
-    );
-  }
-  if (updated) {
-    return (
-      <div>
-        <h2>Updated User Details</h2>
-        <div className="user-details">
-          <p>
-            <strong>User ID:</strong> {userDetails.userId}
-          </p>
-          <p>
-            <strong>Username:</strong> {userDetails.username}
-          </p>
-          <p>
-            <strong>Email:</strong> {userDetails.email}
-          </p>
-          <p>
-            <strong>Role:</strong> {userDetails.role}
-          </p>
+      <form onSubmit={updateUser} className="modal-form">
+        <h2>Modify User</h2>
+        <div className="modal-form-item">
+          <label htmlFor="username">Username:</label>
+          <input type="text" id="username" name="username" defaultValue={userDetails.username} required />
         </div>
-        <button onClick={onClose}>Close</button>
-      </div>
+        <div className="modal-form-item">
+          <label htmlFor="email">Email:</label>
+          <input type="email" id="email" name="email" defaultValue={userDetails.email} required />
+        </div>
+        <div className="modal-form-item">
+          <label htmlFor="role">Role:</label>
+          <input type="text" id="role" name="role" defaultValue={userDetails.role} required />
+        </div>
+        <button type="submit">Update</button>
+        <button type="button" onClick={onClose}>Cancel</button>
+      </form>
     );
   }
-  return <></>;
+
+  return (
+    <div>
+      <h2>Updated User Details</h2>
+      <div className="user-details">
+        {["userId", "username", "email", "role"].map((field) => (
+          <p key={field}>
+            <strong>{field[0].toUpperCase() + field.slice(1)}:</strong> {userDetails[field]}
+          </p>
+        ))}
+      </div>
+      <button onClick={onClose}>Close</button>
+    </div>
+  );
+};
+
+// BusinessModal Component
+const BusinessModal = ({ modalType, formData, handleInputChange, handleSubmit, response, onClose }) => {
+  const businessKeyMap = {
+    monthlyBusiness: ["month", "year"],
+    dailyBusiness: ["date"],
+    yearlyBusiness: ["year"],
+    overallBusiness: [],
+  };
+
+  const titleMap = {
+    monthlyBusiness: "Monthly Business",
+    dailyBusiness: "Daily Business",
+    yearlyBusiness: "Yearly Business",
+    overallBusiness: "Overall Business",
+  };
+
+  const keys = businessKeyMap[modalType];
+
+  return (
+    <form className="modal-form" onSubmit={handleSubmit}>
+      <h2>{titleMap[modalType]}</h2>
+      {!response && keys.map((key) => (
+        <div className="modal-form-item" key={key}>
+          <label htmlFor={key}>{key[0].toUpperCase() + key.slice(1)}:</label>
+          <input
+            type={key === "date" ? "text" : "number"}
+            id={key}
+            name={key}
+            value={formData[key]}
+            onChange={handleInputChange}
+            placeholder={key === "date" ? "YYYY-MM-DD" : ""}
+            required
+          />
+        </div>
+      ))}
+      {!response && <button type="submit">{modalType === "overallBusiness" ? "Get Overall Business" : "Submit"}</button>}
+
+      {response && (
+        <div>
+          <div className="business-response-item">
+            <div>Total Business: ₹</div>
+            <div>{response[modalType]?.totalBusiness?.toFixed(2)}</div>
+          </div>
+          <div className="business-response-item"><h5>Category Sales</h5></div>
+          {response[modalType]?.categorySales &&
+            Object.keys(response[modalType].categorySales).map((key) => (
+              <div key={key} className="business-response-item">
+                <div>{key}</div>
+                <div>{response[modalType].categorySales[key]}</div>
+              </div>
+            ))}
+        </div>
+      )}
+      <button type="button" onClick={onClose}>Cancel</button>
+    </form>
+  );
 };

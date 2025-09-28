@@ -10,7 +10,16 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const [modalType, setModalType] = useState(null); // State to manage modal visibility and type
   const [modalData, setModalData] = useState(null); // State to store data passed to modal (if needed)
-  const [response, setResponse] = useState(null); // State to store API responses
+  const [response, setResponse] = useState(null);   // State to store API responses
+  const [inputValue, setInputValue] = useState("");
+
+  // Reset delete modal state whenever it opens
+  useEffect(() => {
+    if (modalType === "deleteProduct") {
+      setResponse(null);
+      setInputValue("");
+    }
+  }, [modalType]);
 
   // Centralized card data
   const cardData = [
@@ -81,19 +90,18 @@ const AdminDashboard = () => {
     }
   };
 
-  // Handlers for each modal action
+  // === API Handlers ===
   const handleAddProductSubmit = async (productData) => {
     try {
       const response = await fetch("http://localhost:9090/admin/products/add", {
         method: "POST",
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(productData),
       });
       const data = await response.json();
-      setResponse({ product: data, imageUrl: productData.imageUrl });
+      console.log("Product added response:", data);
+      setResponse({ product: data });
       setModalType("addProduct");
     } catch (error) {
       console.error("Error adding product:", error);
@@ -102,117 +110,119 @@ const AdminDashboard = () => {
 
   const handleDeleteProductSubmit = async ({ productId }) => {
     try {
-      const response = await fetch(
-        "http://localhost:9090/admin/products/delete",
-        {
-          method: "DELETE",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ productId }),
-        }
-      );
-      console.log("response", response);
-      // Handle response logic
-      if (response.ok) {
-        setResponse({ message: "Delete Success" });
+      const res = await fetch("http://localhost:9090/admin/products/delete", {
+        method: "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId }),
+      });
+
+      const text = await res.text();
+      if (res.ok) {
+        setResponse({
+          success: true,
+          message: text || `Product ${productId} deleted successfully`,
+        });
       } else {
-        const errorMessage = await response.text();
-        setResponse({ message: `Error: ${errorMessage}` });
+        setResponse({
+          success: false,
+          message: text || "Product not found",
+        });
       }
-    } catch (error) {
-      console.error("Error deleting product:", error);
+    } catch (err) {
+      setResponse({ success: false, message: `Network error: ${err.message}` });
     }
   };
 
   const handleViewUserSubmit = async ({ userId }) => {
     try {
-      const response = await fetch("http://localhost:9090/admin/user/getbyid", {
+      const res = await fetch("http://localhost:9090/admin/user/getbyid", {
         method: "POST",
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ userId }), // Send userId in request body
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
       });
-      if (response.ok) {
-        const data = await response.json();
-        setResponse({ user: data });
-        setModalType("response");
+
+      if (res.ok) {
+        const data = await res.json();
+        setResponse({ success: true, user: data });
       } else {
-        const errorMessage = await response.text();
-        setResponse({ message: `Error: ${errorMessage}` });
-        setModalType("response");
+        const text = await res.text();
+        setResponse({ success: false, message: text || "User not found" });
       }
-    } catch (error) {
-      console.error("Error fetching user details:", error);
-      setResponse({ message: "Error: Something went wrong" });
-      setModalType("response");
+    } catch (err) {
+      setResponse({ success: false, message: `Network error: ${err.message}` });
     }
   };
 
   const handleModifyUserSubmit = async (data) => {
-    if (!data.username) {
-      // Fetch user details
-      try {
-        console.log("Fetching user details for ID:", data.userId); // Debugging
-        const response = await fetch(
-          "http://localhost:9090/admin/user/getbyid",
-          {
-            method: "POST",
-            credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ userId: data.userId }), // Ensure userId is correctly passed
-          }
-        );
-        if (response.ok) {
-          const userDetails = await response.json();
-          setResponse({ user: userDetails });
-          setModalType("modifyUser");
+  const baseUrl = "http://localhost:9090/admin/user";
+
+  // ---------- 1️⃣ Fetch existing user ----------
+  if (!data.username) {
+    try {
+      console.log("Fetching user details for ID:", data.userId);
+
+      const res = await fetch(`${baseUrl}/getbyid`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: data.userId }),
+      });
+
+      if (!res.ok) {
+        // ✅ Explicit handling for 404
+        if (res.status === 404) {
+          setResponse({ message: "User not found. Please check the ID." });
         } else {
-          const error = await response.text();
-          setResponse({ message: `Error: ${error}` });
-          setModalType("response");
+          const errText = await res.text();
+          setResponse({ message: `Error ${res.status}: ${errText || "Unknown"}` });
         }
-      } catch (error) {
-        console.error("Error fetching user details:", error);
-        setResponse({ message: "Error: Something went wrong" });
         setModalType("response");
+        return;
       }
-    } else {
-      // Update user details
-      try {
-        console.log("Updating user details:", data); // Debugging
-        const response = await fetch(
-          "http://localhost:9090/admin/user/modify",
-          {
-            method: "PUT",
-            credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(data), // Ensure the full payload is sent
-          }
-        );
-        if (response.ok) {
-          const updatedUser = await response.json();
-          setResponse({ user: updatedUser });
-          setModalType("response");
-        } else {
-          const error = await response.text();
-          setResponse({ message: `Error: ${error}` });
-          setModalType("response");
-        }
-      } catch (error) {
-        console.error("Error updating user details:", error);
-        setResponse({ message: "Error: Something went wrong" });
-        setModalType("response");
-      }
+
+      const userDetails = await res.json();
+      setResponse({ user: userDetails });
+      setModalType("modifyUser"); // show form for editing
+
+    } catch (err) {
+      console.error("Network error while fetching user:", err);
+      setResponse({ message: "Network error. Try again later." });
+      setModalType("response");
     }
-  };
+    return;
+  }
+
+  // ---------- 2️⃣ Update user details ----------
+  try {
+    console.log("Updating user details:", data);
+
+    const res = await fetch(`${baseUrl}/modify`, {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      setResponse({ message: `Error ${res.status}: ${errText || "Update failed"}` });
+      setModalType("response");
+      return;
+    }
+
+    const updatedUser = await res.json();
+    setResponse({ user: updatedUser, message: "User updated successfully!" });
+    setModalType("response");
+
+  } catch (err) {
+    console.error("Network error while updating user:", err);
+    setResponse({ message: "Network error. Try again later." });
+    setModalType("response");
+  }
+};
+
 
   const handleMonthlyBusiness = async (data) => {
     try {
@@ -221,14 +231,12 @@ const AdminDashboard = () => {
         {
           method: "GET",
           credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
         }
       );
       if (response.ok) {
-        const data = await response.json();
-        setResponse({ monthlyBusiness: data });
+        const resData = await response.json();
+        setResponse({ monthlyBusiness: resData });
         setModalType("monthlyBusiness");
       } else {
         const errorMessage = await response.text();
@@ -249,14 +257,12 @@ const AdminDashboard = () => {
         {
           method: "GET",
           credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
         }
       );
       if (response.ok) {
-        const data = await response.json();
-        setResponse({ dailyBusiness: data });
+        const resData = await response.json();
+        setResponse({ dailyBusiness: resData });
         setModalType("dailyBusiness");
       } else {
         const errorMessage = await response.text();
@@ -277,14 +283,12 @@ const AdminDashboard = () => {
         {
           method: "GET",
           credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
         }
       );
       if (response.ok) {
-        const data = await response.json();
-        setResponse({ yearlyBusiness: data });
+        const resData = await response.json();
+        setResponse({ yearlyBusiness: resData });
         setModalType("yearlyBusiness");
       } else {
         const errorMessage = await response.text();
@@ -300,19 +304,14 @@ const AdminDashboard = () => {
 
   const handleOverallBusiness = async () => {
     try {
-      const response = await fetch(
-        `http://localhost:9090/admin/business/overall`,
-        {
-          method: "GET",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const response = await fetch(`http://localhost:9090/admin/business/overall`, {
+        method: "GET",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
       if (response.ok) {
-        const data = await response.json();
-        setResponse({ overallBusiness: data });
+        const resData = await response.json();
+        setResponse({ overallBusiness: resData });
         setModalType("overallBusiness");
       } else {
         const errorMessage = await response.text();
@@ -350,7 +349,7 @@ const AdminDashboard = () => {
               className="card"
               onClick={() => {
                 setModalType(card.modalType);
-                setModalData(null); // Clear any previous data
+                setModalData(null);
               }}
             >
               <div className="card-content">
@@ -400,8 +399,6 @@ const AdminDashboard = () => {
               case "overallBusiness":
                 handleOverallBusiness();
                 break;
-
-              // Add more cases here as needed
               default:
                 break;
             }
